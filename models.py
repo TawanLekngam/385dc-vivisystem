@@ -11,12 +11,6 @@ class EventType(Enum):
     STATUS = 3
     MIGRATE = 4
 
-class Payload:
-    def __init__(self, action: EventType, data=object):
-        self.action = action
-        # data is either fish or pond below
-        self.data = data
-
 class VivisystemPond(NamedTuple):
     name: str
     total_fishes: int = 0

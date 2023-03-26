@@ -1,1 +1,4 @@
 # VIVIsystem
+
+idea: 
+websocket
