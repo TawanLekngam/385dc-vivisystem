@@ -1,82 +1,35 @@
-import pickle
-import socket
-import threading
+from flask import Flask, request
+from flask_socketio import SocketIO, emit
+from models import EventType
 
-# sys.path.append('../src')
-from models import Payload, ActionType
+app = Flask(__name__)
+app.config['DEBUG'] = True
+app.config['SECRET_KEY'] = 'secret!'
 
-IP = "localhost"
-PORT = 8016
-ADDR = (IP, PORT)
-MSG_SIZE = 4096
-FORMAT = "utf-8"
+socketio = SocketIO(app)
 
-all_connections = {}
+@socketio.on('connect')
+def handle_connect(data):
+    pond = request.args.get('pondId')
+    print(f"{pond} connects")
 
+@socketio.on('disconnect')
+def handle_disconnect():
+    pond = request.args.get('pondId')
+    print(f"{pond} disconnects")
+    emit(str(EventType.DISCONNECT), pond, broadcast=True)
 
-def handle_pond(connection, address):
-    print(f"New pond connected from : {address}")
-    connected = True
-    while connected:
-        try:
-            message = connection.recv(MSG_SIZE)
-        except ConnectionResetError:
-            all_connections.pop(address, None)
-            print(
-                f"{address} Disconnects. Ponds in the vivisystem: {len(all_connections)}")
-            break
+@socketio.on(str(EventType.MIGRATE))
+def handle_migrate(destination, data):
+    pond = request.args.get('pondId')
+    print(f'received migrate from {pond}, data: {data}')
+    emit(str(EventType.MIGRATE), (destination, data), broadcast=True)
 
-        # separate message type
-        try:
-            msg: Payload = pickle.loads(message)
-        except EOFError:
-            all_connections.pop(address, None)
-            print(
-                f"{address} Disconnects. Ponds in the vivisystem: {len(all_connections)}")
-            break
+@socketio.on(str(EventType.STATUS))
+def handle_status(data):
+    pond = request.args.get('pondId')
+    print(f'received status from: {pond}, data: {data}')
+    emit(str(EventType.STATUS), data, broadcast=True)
 
-        print(f"New request From {address}, Action: {msg.action}")
-        if msg.action == ActionType.DISCONNECT:
-            connected = False
-            all_connections.pop(address)
-            for conn in all_connections.values():
-                # conn.send(f"{address} disconnected.".encode(FORMAT))
-                print("-------------------------", msg.action)
-                conn.send(message)
-        else:
-            for conn in all_connections.values():
-                # print(msg)
-                conn.send(message)
-        print(f"Current connections {list(all_connections.keys())}")
-
-    connection.close()
-
-
-if __name__ == "__main__":
-    print("Starting vivisystem...")
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(ADDR)
-    server.listen(5)
-    print(f"Vivisystem is listening on {IP}:{PORT}")
-    while True:
-        add, con = server.accept()
-        if type(add) == tuple:
-            clientAddress = add
-            clientConnection = con
-        else:
-            clientAddress = con
-            clientConnection = add
-
-        all_connections[clientAddress] = clientConnection
-
-        pond_handler = threading.Thread(
-            target=handle_pond,
-            args=(
-                clientConnection,
-                clientAddress,
-            ),
-        )
-        pond_handler.start()
-        print(
-            f"Ponds in the vivisystem: {threading.active_count() - 1} {clientConnection} {clientAddress}"
-        )
+if __name__ == '__main__':
+    socketio.run(app)
