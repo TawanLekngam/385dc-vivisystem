@@ -14,22 +14,22 @@ class VivisystemClient:
             EventType.DISCONNECT: self.__disconnect_handler,
         }
         for event, handler in handlerMap.items():
-            self.sio.on(str(event), handler)
+            self.sio.on(event, handler)
         self._handlers = {}
 
     def disconnect(self):
         self.sio.disconnect()
-    
+
     def handle_event(self, event: EventType, callback):
         self._handlers[event] = callback
 
     def send_status(self, pond: VivisystemPond):
-        self.sio.emit(str(EventType.STATUS), pond._asdict())
+        self.sio.emit(EventType.STATUS, pond._asdict())
 
     def migrate_fish(self, destination: str, fish: VivisystemFish):
-        self.sio.emit(str(EventType.MIGRATE), data=(destination, fish._asdict()))
+        self.sio.emit(EventType.MIGRATE, data=(destination, fish._asdict()))
 
-    def __status_handler(self, pond):        
+    def __status_handler(self, pond):
         pond = VivisystemPond(**pond)
         if pond.name == self.pond_id:
             return
